@@ -1,0 +1,64 @@
+name: Build GPT Knowledge Package
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-gpt-knowledge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare folders
+        run: |
+          mkdir -p gpt_knowledge/{architecture,domain,api,config,code_reference}
+
+      - name: Project overview
+        run: |
+          cat <<EOF > gpt_knowledge/README_GPT.md
+          # Qpon – Knowledge Base for GPT
+
+          This package contains curated technical and business knowledge
+          extracted from the Qpon repository.
+
+          Purpose:
+          - Support reasoning about architecture
+          - Understand business rules
+          - Assist development and debugging
+          EOF
+
+      - name: Extract architecture info
+        run: |
+          if [ -f docker-compose.yml ]; then
+            echo "# Docker Architecture" > gpt_knowledge/architecture/docker.md
+            sed '/^\s*#/d' docker-compose.yml >> gpt_knowledge/architecture/docker.md
+          fi
+
+      - name: Extract environment variables
+        run: |
+          if [ -f .env.example ]; then
+            echo "# Environment Variables" > gpt_knowledge/config/env.sample.md
+            sed '/^\s*#/d' .env.example >> gpt_knowledge/config/env.sample.md
+          fi
+
+      - name: Summarize API services
+        run: |
+          echo "# API Services Summary" > gpt_knowledge/code_reference/services_summary.md
+          find api/src/services -type f -name "*.ts" \
+            -exec basename {} \; \
+            | sed 's/.ts//' \
+            >> gpt_knowledge/code_reference/services_summary.md
+
+      - name: Zip knowledge package
+        run: |
+          zip -r gpt_knowledge_qpon.zip gpt_knowledge
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpt-knowledge-qpon
+          path: gpt_knowledge_qpon.zip
